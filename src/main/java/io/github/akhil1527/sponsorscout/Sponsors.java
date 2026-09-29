@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -24,10 +27,17 @@ class Sponsors {
     }
 
     private final JdbcTemplate db;
+    // kept until restart; the data only changes through the ingest command
+    private final Map<String, Optional<SponsorRecord>> records = new ConcurrentHashMap<>();
     private volatile String coverage;
 
     Sponsors(JdbcTemplate db) {
         this.db = db;
+        // a database loaded before the title index existed gets it on first start (a few seconds, once)
+        if (!db.queryForObject("SELECT COUNT(*) FROM lca_fts", Integer.class)
+                .equals(db.queryForObject("SELECT COUNT(*) FROM lca", Integer.class))) {
+            LcaIngest.INDEX_TITLES.forEach(db::execute);
+        }
     }
 
     /** Employers with the most certified H-1B LCAs for titles containing every word of the role. */
@@ -54,21 +64,31 @@ class Sponsors {
 
     /** One employer's filing record, or null when the data has no filings under that name. */
     SponsorRecord record(String company, String role) {
+        return records.computeIfAbsent(company + "|" + role, k -> Optional.ofNullable(load(company, role)))
+                .orElse(null);
+    }
+
+    private SponsorRecord load(String company, String role) {
         String key = Filters.employerKey(company);
         if (key.isEmpty()) {
             return null;
         }
-        Where e = new Where().and("(employer_key = ? OR employer_key LIKE ?)", key, key + " %");
-        Map<String, Object> t = db.queryForMap("SELECT MAX(employer) employer, COUNT(*) n, SUM(new_hires) nh, "
-                + "SUM(transfers) tr, CAST(AVG(wage) AS INTEGER) w FROM lca WHERE " + e.sql, e.args());
+        // the key itself or "KEY ..." (AMAZON matches AMAZON WEB SERVICES), as an index range instead of LIKE
+        String byKey = "(employer_key = ? OR (employer_key > ? AND employer_key < ?))";
+        Where e = new Where().and(byKey, key, key + " ", key + "!");
+        Map<String, Object> t = db.queryForMap("SELECT COUNT(*) n, COUNT(DISTINCT employer_key) k, "
+                + "SUM(new_hires) nh, SUM(transfers) tr, CAST(AVG(wage) AS INTEGER) w FROM lca WHERE " + e.sql, e.args());
         if (num(t.get("n")) == 0) {
             return null;
         }
+        // several legal entities (Amazon files under 17) go by the name the user asked about
+        String employer = num(t.get("k")) > 1 ? company.trim() : db.queryForObject("SELECT employer FROM lca WHERE "
+                + e.sql + " GROUP BY employer ORDER BY COUNT(*) DESC LIMIT 1", String.class, e.args());
         int roleFilings = 0;
         Long roleWage = null;
         List<TitleStat> titles = List.of();
         if (role != null && !role.isBlank()) {
-            Where er = Where.role(role).and("(employer_key = ? OR employer_key LIKE ?)", key, key + " %");
+            Where er = Where.role(role).and(byKey, key, key + " ", key + "!");
             Map<String, Object> r = db.queryForMap("SELECT COUNT(*) n, CAST(AVG(wage) AS INTEGER) w FROM lca WHERE "
                     + er.sql, er.args());
             roleFilings = num(r.get("n"));
@@ -78,7 +98,7 @@ class Sponsors {
         if (titles.isEmpty()) {
             titles = titles(e, 5);
         }
-        return new SponsorRecord((String) t.get("employer"), num(t.get("n")), num(t.get("nh")), num(t.get("tr")),
+        return new SponsorRecord(employer, num(t.get("n")), num(t.get("nh")), num(t.get("tr")),
                 wage(t.get("w")), role, roleFilings, roleWage, titles, cities(e, 3));
     }
 
@@ -118,13 +138,12 @@ class Sponsors {
         private String sql = "1 = 1";
         private final List<Object> args = new ArrayList<>();
 
+        /** Titles with a word starting with each word of the role, looked up in the word index. */
         static Where role(String role) {
             Where w = new Where();
-            if (role != null) {
-                Arrays.stream(role.toLowerCase(Locale.ROOT).split("[^a-z0-9+#.]+")).filter(s -> !s.isEmpty())
-                        .forEach(word -> w.and("lower(job_title) LIKE ?", "%" + word + "%"));
-            }
-            return w;
+            String words = role == null ? "" : Arrays.stream(role.toLowerCase(Locale.ROOT).split("[^a-z0-9]+"))
+                    .filter(s -> !s.isEmpty()).map(s -> "\"" + s + "\"*").collect(Collectors.joining(" "));
+            return words.isEmpty() ? w : w.and("rowid IN (SELECT rowid FROM lca_fts WHERE lca_fts MATCH ?)", words);
         }
 
         Where and(String clause, Object... values) {

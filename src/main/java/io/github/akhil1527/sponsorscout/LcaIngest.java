@@ -27,6 +27,10 @@ import org.apache.poi.ss.usermodel.Workbook;
  */
 final class LcaIngest {
 
+    /** Rebuilds the job title word index. INSERT OR REPLACE changes rowids, so this runs after every ingest. */
+    static final List<String> INDEX_TITLES = List.of("DELETE FROM lca_fts",
+            "INSERT INTO lca_fts(rowid, job_title) SELECT rowid, job_title FROM lca");
+
     private LcaIngest() {
     }
 
@@ -49,6 +53,12 @@ final class LcaIngest {
                     c.commit();
                 }
             }
+            try (Statement st = c.createStatement()) {
+                for (String sql : INDEX_TITLES) {
+                    st.execute(sql);
+                }
+            }
+            c.commit();
         }
     }
 

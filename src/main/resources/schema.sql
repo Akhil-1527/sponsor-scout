@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS lca (
     decided      TEXT
 );
 CREATE INDEX IF NOT EXISTS lca_employer ON lca (employer_key);
+-- Word index over job titles for role searches. Its rowids point at lca rows, so it is rebuilt after every ingest.
+CREATE VIRTUAL TABLE IF NOT EXISTS lca_fts USING fts5(job_title);
 
 CREATE TABLE IF NOT EXISTS profile (
     id      INTEGER PRIMARY KEY CHECK (id = 1),
