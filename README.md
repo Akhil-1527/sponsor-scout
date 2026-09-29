@@ -12,7 +12,8 @@ It answers the questions international job seekers ask every day:
 
 ## How it works
 
-- **Sponsor history** comes from the US Department of Labor's LCA disclosure data (certified H-1B cases).
+- **Sponsor history** comes from the US Department of Labor's LCA disclosure data (certified H-1B cases), with a
+  full-text index on job titles so most lookups take well under half a second.
 - **Openings** come live from the public Greenhouse, Lever, Ashby and SmartRecruiters job boards of 109
   companies, cached and refreshed every 30 minutes so a voice request never waits on 100+ boards.
 - **Filtering:** postings that refuse sponsorship ("unable to sponsor", "US citizens only") or ask for far more
@@ -101,6 +102,11 @@ An LCA (Labor Condition Application) is the wage filing an employer has to get c
 H-1B petition. A certified LCA shows the employer intends to hire someone on H-1B for that role at that wage.
 It is not a petition approval, and one LCA can cover more than one worker. The ingest keeps certified H-1B cases
 only and skips contact names and emails.
+
+## Friction log
+
+Problems I hit with the Alexa+ and MCP tooling while building this, with suggestions, are in
+[FRICTION.md](FRICTION.md).
 
 ## Stack
 
