@@ -32,6 +32,9 @@ class FiltersTest {
         assertTrue(Filters.inState("Austin, TX", "Texas"));
         assertTrue(Filters.inState("Remote - US", "TX"));
         assertFalse(Filters.inState("New York, NY", "TX"));
+        assertTrue(Filters.inState("Remote - US", "remote"));
+        assertFalse(Filters.inState("New York, NY", "remote"));
+        assertTrue(Filters.inState("New York, NY", "somewhere"));
     }
 
     @Test
@@ -60,6 +63,14 @@ class FiltersTest {
         assertTrue(Filters.fitsLevel("Internal Tools Engineer", 4));
         assertTrue(Filters.matchesRole("Java Full Stack Developer", "java developer"));
         assertFalse(Filters.matchesRole("JavaScript Engineer", "java developer"));
+    }
+
+    @Test
+    void lists() {
+        assertEquals(java.util.List.of("backend engineer", "java developer"),
+                Tracker.split("backend engineer or java developer"));
+        assertEquals(java.util.List.of("TX", "remote"), Tracker.split("TX, remote"));
+        assertEquals(java.util.List.of("Oregon"), Tracker.split("Oregon"));
     }
 
     @Test

@@ -150,7 +150,8 @@ public class ScoutTools {
         List<Opening> list = openings(role, state, clamp(limit, 5, 15));
         tracker.markSeen(list.stream().map(Opening::jobId).toList());
         if (list.isEmpty()) {
-            return new OpeningsResult("No matching openings right now on the boards I watch. I'll keep checking.",
+            return new OpeningsResult("No matching openings right now on the boards I watch. A broader title, like software "
+                    + "engineer, or another state may find more.",
                     list);
         }
         Opening top = list.get(0);
@@ -290,13 +291,13 @@ public class ScoutTools {
 
     private List<Opening> openings(String role, String state, int limit) {
         Tracker.Profile p = tracker.profile();
-        List<String> roles = role != null && !role.isBlank() ? List.of(role)
+        List<String> roles = role != null && !role.isBlank() ? Tracker.split(role)
                 : p == null ? List.of() : p.roles();
         if (roles.isEmpty()) {
             throw new IllegalArgumentException("Give a role to search for, or set a profile first.");
         }
         Integer years = p == null ? null : p.years();
-        List<String> states = state != null && !state.isBlank() ? List.of(state)
+        List<String> states = state != null && !state.isBlank() ? Tracker.split(state)
                 : p == null ? List.of() : p.states();
 
         List<JobBoards.Job> candidates = boards.all().stream()

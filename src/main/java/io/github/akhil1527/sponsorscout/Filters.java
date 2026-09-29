@@ -86,14 +86,18 @@ final class Filters {
         return US_NAME_RX.matcher(s).find() || anyCode(CODE2, s, STATES.keySet());
     }
 
-    /** True if the location names this state (code or full name), or is remote. */
+    /** True if the location names this state (code or full name), or is remote. "remote" alone means remote only. */
     static boolean inState(String location, String state) {
-        String code = stateCode(state);
-        if (code == null || location == null) {
+        if (location == null) {
             return true;
         }
         String l = location.toLowerCase(Locale.ROOT);
-        return l.contains("remote") || l.contains(STATES.get(code)) || anyCode(CODE2, location, Set.of(code));
+        if (state.trim().equalsIgnoreCase("remote")) {
+            return l.contains("remote");
+        }
+        String code = stateCode(state);
+        return code == null || l.contains("remote") || l.contains(STATES.get(code))
+                || anyCode(CODE2, location, Set.of(code));
     }
 
     /** "texas", "TX" or "tx" to "TX"; null if not a state. */

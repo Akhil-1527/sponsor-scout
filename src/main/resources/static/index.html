@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponsor Scout</title>
+<style>
+  :root { --bg: #0a1224; --panel: #131f3a; --line: #22335a; --text: #eef3ff; --dim: #93a3c7; --cyan: #00caff; --warn: #ffb86b; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; justify-content: space-between; padding: 16px 20px 0; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+  header p { margin: 0; color: var(--dim); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px 16px 150px; }
+  #heard { min-height: 1.5em; color: var(--dim); margin: 28px 0 6px; }
+  #reply { min-height: 2.8em; font-size: clamp(22px, 3.2vw, 30px); line-height: 1.3; margin: 0 0 24px; }
+  #offline { display: none; background: #3a2a14; color: var(--warn); padding: 10px 14px; border-radius: 10px; }
+  .tries { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .tries button { background: none; color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+  .tries button:hover { border-color: var(--cyan); }
+  #cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; position: relative; overflow-wrap: anywhere; }
+  .card h3 { margin: 0 0 4px; font-size: 16px; line-height: 1.3; }
+  .card .n { position: absolute; top: 12px; right: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--cyan); color: var(--bg); font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+  .card .n + h3 { padding-right: 34px; }
+  .card p { margin: 4px 0; color: var(--dim); font-size: 14px; }
+  .card .h1b { color: var(--cyan); }
+  .card .warn { color: var(--warn); }
+  .card a { color: var(--cyan); font-size: 14px; }
+  .chip { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; margin: 2px 4px 0 0; font-size: 13px; color: var(--text); }
+  .dock { position: fixed; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, var(--bg) 30%); padding: 28px 16px 22px; }
+  .dock-row { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; align-items: center; }
+  #mic { flex: none; width: 60px; height: 60px; border-radius: 50%; border: 0; background: var(--cyan); color: var(--bg); cursor: pointer; display: grid; place-items: center; }
+  #mic:disabled, form button:disabled { opacity: .45; cursor: default; }
+  form { flex: 1; display: flex; gap: 8px; }
+  input { flex: 1; min-width: 0; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 12px 16px; font: inherit; }
+  form button { background: none; color: var(--text); border: 1px solid var(--line); border-radius: 999px; padding: 0 16px; font: inherit; cursor: pointer; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; height: 5px; opacity: .15; transition: opacity .3s;
+         background: linear-gradient(90deg, #00caff, #3b5bff, #a64dff, #00caff); background-size: 300% 100%; }
+  body[data-state=listening] .bar { opacity: 1; animation: pulse 1.1s ease-in-out infinite; }
+  body[data-state=thinking] .bar { opacity: 1; animation: flow 1.2s linear infinite; }
+  body[data-state=speaking] .bar { opacity: 1; animation: flow 3s linear infinite; }
+  body[data-state=listening] #mic { box-shadow: 0 0 0 6px rgba(0, 202, 255, .25); }
+  @keyframes flow { to { background-position: 300% 0; } }
+  @keyframes pulse { 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .bar { animation: none !important; } }
+  footer { color: var(--dim); font-size: 12px; margin-top: 32px; }
+</style>
+</head>
+<body data-state="idle">
+<header>
+  <h1>Sponsor Scout</h1>
+  <p id="status">Simulated Alexa+ session</p>
+</header>
+<main>
+  <p id="offline">The assistant is offline: no Gemini API key is set on the server. The MCP tools still work.</p>
+  <p id="heard" aria-live="polite"></p>
+  <p id="reply" aria-live="polite">Ask me who sponsors H-1B for your role, or what's new today.</p>
+  <div class="tries" id="tries">
+    <button>I'm a Java developer with 4 years of experience on STEM OPT, looking in Texas</button>
+    <button>Who sponsors H-1B for data analysts in Texas?</button>
+    <button>Does Stripe sponsor H-1B?</button>
+    <button>What's new today?</button>
+  </div>
+  <div id="cards" aria-live="polite"></div>
+  <footer>Speech runs in your browser. Answers come from Gemini calling the Sponsor Scout MCP server. H-1B numbers are certified
+    Labor Condition Applications from US Department of Labor disclosure data.</footer>
+</main>
+<div class="dock">
+  <div class="dock-row">
+    <button id="mic" aria-label="Talk">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1a7 7 0 0 0 6-6.9h-2z"/></svg>
+    </button>
+    <form id="form"><input id="q" placeholder="Or type a question" autocomplete="off" aria-label="Question"><button>Ask</button></form>
+  </div>
+</div>
+<div class="bar"></div>
+<script>
+const $ = id => document.getElementById(id);
+const conversation = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2);
+let screen = []; // the last job list shown, so "the second one" can be resolved
+let busy = false;
+
+function setState(s) { document.body.dataset.state = s; }
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+const money = n => n ? '$' + Number(n).toLocaleString('en-US') : '';
+const place = loc => (loc || 'Location not listed').split(';')[0];
+
+function card(title, lines, n) {
+  const c = el('div', 'card');
+  if (n) c.append(el('span', 'n', n));
+  c.append(el('h3', null, title));
+  for (const l of lines) if (l) c.append(l instanceof Node ? l : el('p', null, l));
+  return c;
+}
+function link(url) {
+  if (!/^https?:\/\//.test(url || '')) return null;
+  const a = el('a', null, 'View posting');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  return el('p').appendChild(a).parentNode;
+}
+function chips(items) {
+  if (!items || !items.length) return null;
+  const p = el('p');
+  for (const i of items) p.append(el('span', 'chip', typeof i === 'string' ? i : i.title));
+  return p;
+}
+function h1bLine(o) {
+  const text = o.roleFilings > 0 ? o.roleFilings + ' H-1B filings for similar titles'
+    : o.companyFilings > 0 ? o.companyFilings + ' H-1B filings overall' : 'No H-1B filings on record';
+  return el('p', 'h1b', text + (o.roleAvgWage ? ', average wage ' + money(o.roleAvgWage) : ''));
+}
+function jobCard(o, i) {
+  return card(o.title, [o.company + ', ' + place(o.location), h1bLine(o), o.posted ? 'Posted ' + o.posted : '', link(o.url)], i + 1);
+}
+function sponsorCard(s) {
+  return card(s.employer, [
+    el('p', 'h1b', s.filings.toLocaleString('en-US') + ' certified H-1B filings'),
+    s.newHires + ' new hires, ' + s.transfers + ' transfers',
+    s.role ? s.roleFilings + ' for ' + s.role + ' titles' : '',
+    money(s.roleAvgWage || s.avgWage) && 'Average listed wage ' + money(s.roleAvgWage || s.avgWage),
+    chips(s.commonTitles), s.topCities && s.topCities.length ? 'Mostly in ' + s.topCities.join(', ') : '']);
+}
+function trackedCard(j) {
+  return card(j.title, [j.company + ', ' + place(j.location), chips([j.status]),
+    j.followUp ? 'Follow up on ' + j.followUp : '', j.note, link(j.url)]);
+}
+function prepCard(r) {
+  return card('Prep: ' + r.job.title, [r.job.company, h1bLine(r.job),
+    r.saysNoSponsorship ? el('p', 'warn', 'This posting says it will not sponsor') : '',
+    r.yearsAsked != null ? 'Asks for about ' + r.yearsAsked + ' years' : '',
+    r.matchingSkills.length ? 'Your skills it mentions:' : 'It mentions none of your saved skills',
+    chips(r.matchingSkills), link(r.job.url)]);
+}
+function profileCard(p) {
+  return card('Your profile', [chips(p.roles), p.years != null ? p.years + ' years of experience' : '',
+    p.visa, p.states.length ? 'States: ' + p.states.join(', ') : '', chips(p.skills)]);
+}
+
+function render(steps) {
+  const out = [];
+  for (const { tool, result: r } of steps) {
+    const jobs = tool === 'find_openings' ? r.openings : tool === 'daily_briefing' ? r.newOpenings : null;
+    if (jobs && jobs.length) {
+      screen = jobs.map((o, i) => ({ n: i + 1, jobId: o.jobId, company: o.company, title: o.title }));
+      out.push(...jobs.map(jobCard));
+    }
+    if (tool === 'daily_briefing') out.push(...r.followUpsDue.map(trackedCard));
+    if (tool === 'find_sponsors') out.push(...r.sponsors.map(sponsorCard));
+    if (tool === 'check_sponsor' && r.record) out.push(sponsorCard(r.record));
+    if (tool === 'list_applications') out.push(...r.jobs.map(trackedCard));
+    if ((tool === 'save_job' || tool === 'update_status') && r.job) out.push(trackedCard(r.job));
+    if (tool === 'prep_application' && r.job) out.push(prepCard(r));
+    if ((tool === 'set_profile' || tool === 'get_profile') && r.profile) out.push(profileCard(r.profile));
+  }
+  if (out.length) $('cards').replaceChildren(...out); // otherwise keep what's on screen
+}
+
+let voice;
+function pickVoice() {
+  const vs = speechSynthesis.getVoices();
+  return vs.find(v => /Google US English|Samantha|Aria|Jenny/.test(v.name)) || vs.find(v => v.lang === 'en-US');
+}
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); };
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) return setState('idle');
+  speechSynthesis.cancel();
+  // one utterance per sentence: Chrome's online voices stop mid-utterance after about 15 seconds
+  const parts = text.split(/(?<=[.!?])\s+/);
+  parts.forEach((p, i) => {
+    const u = new SpeechSynthesisUtterance(p);
+    u.voice = voice || pickVoice() || null;
+    if (i === 0) u.onstart = () => setState('speaking');
+    if (i === parts.length - 1) u.onend = u.onerror = () => {
+      if (document.body.dataset.state === 'speaking') setState('idle');
+    };
+    speechSynthesis.speak(u);
+  });
+}
+
+async function ask(text) {
+  text = text.trim();
+  if (!text || busy) return;
+  busy = true;
+  $('mic').disabled = $('form').querySelector('button').disabled = true;
+  $('tries').hidden = true;
+  $('heard').textContent = '"' + text + '"';
+  $('reply').textContent = '';
+  setState('thinking');
+  let speech;
+  try {
+    const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, conversation, screen }) });
+    const a = await r.json();
+    speech = a.speech || 'Sorry, I have no answer for that.';
+    render(a.steps || []);
+  } catch (e) {
+    speech = "I can't reach Sponsor Scout right now.";
+  }
+  $('reply').textContent = speech;
+  busy = false;
+  $('mic').disabled = $('form').querySelector('button').disabled = false;
+  speak(speech);
+}
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (SR) {
+  const rec = new SR();
+  rec.lang = 'en-US';
+  rec.interimResults = true;
+  let said = '';
+  rec.onresult = e => {
+    said = Array.from(e.results, r => r[0].transcript).join('');
+    $('heard').textContent = said;
+  };
+  rec.onerror = e => { if (e.error !== 'no-speech' && e.error !== 'aborted') $('heard').textContent = 'Mic error: ' + e.error; };
+  rec.onend = () => { if (said) ask(said); else setState('idle'); };
+  $('mic').onclick = () => {
+    if (document.body.dataset.state === 'listening') return rec.stop();
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    said = '';
+    setState('listening');
+    rec.start();
+  };
+} else {
+  $('mic').hidden = true;
+  $('q').placeholder = 'Voice input needs Chrome, Edge or Safari. Type a question';
+}
+
+$('form').onsubmit = e => { e.preventDefault(); ask($('q').value); $('q').value = ''; };
+$('tries').onclick = e => { if (e.target.tagName === 'BUTTON') ask(e.target.textContent); };
+
+fetch('/api/status').then(r => r.json()).then(s => {
+  if (!s.assistant) $('offline').style.display = 'block';
+  $('status').textContent = 'Simulated Alexa+ session. ' + (s.data ? s.data + ', ' : '') + s.jobs.toLocaleString('en-US') + ' live openings';
+}).catch(() => {});
+</script>
+</body>
+</html>

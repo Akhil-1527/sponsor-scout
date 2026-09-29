@@ -111,8 +111,9 @@ class Tracker {
                 rs.getString("follow_up"), rs.getString("updated"));
     }
 
-    private static List<String> split(String csv) {
+    /** "a, b" or "a or b" to [a, b]. Models and people both write lists either way. */
+    static List<String> split(String csv) {
         return csv == null || csv.isBlank() ? List.of()
-                : Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
+                : Arrays.stream(csv.split(",|\\s+or\\s+")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 }
