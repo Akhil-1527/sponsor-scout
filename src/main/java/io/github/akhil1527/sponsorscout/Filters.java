@@ -179,7 +179,7 @@ final class Filters {
     }
 
     private static final Pattern LEGAL_SUFFIX = Pattern.compile(
-            "(,?\\s+(inc|llc|l\\.l\\.c|corp|corporation|co|ltd|limited|n\\.a|llp|lp|plc)\\.?)+$", Pattern.CASE_INSENSITIVE);
+            "(,?\\s+(inc|llc|l\\.l\\.c|corp|corporation|co|ltd|limited|n\\.a|national association|llp|lp|plc)\\.?)+$", Pattern.CASE_INSENSITIVE);
 
     /** Employer name as a person would say it: "Citibank, N.A." to "Citibank". */
     static String spokenName(String employer) {

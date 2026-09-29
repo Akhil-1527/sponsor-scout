@@ -71,5 +71,6 @@ class FiltersTest {
         assertEquals("Citibank", Filters.spokenName("Citibank, N.A."));
         assertEquals("Capital One Services", Filters.spokenName("Capital One Services, LLC"));
         assertEquals("Stripe", Filters.spokenName("Stripe, Inc."));
+        assertEquals("Capital One", Filters.spokenName("Capital One, National Association"));
     }
 }
